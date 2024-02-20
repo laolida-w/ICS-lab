@@ -1,0 +1,197 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# Include your name and ID here.
+#name:Wangy Yuhao
+#ID:2200017794
+# Describe how and why you modified the baseline code.
+#
+#*standard iaddq:no need to restore immidiates in registers,which uses a lot of unnecessary instructions.
+#*less bubbles: reduce bubbles,such as bubbles between mrmovq and rmmovq
+#*loop unrolling: unroll the loop into 9 section ,reduce update instructions.
+#*rest elements:uisng binary search
+#*combine the operation "add %rax":in label "rest_02", reduce 1 instruction(...)
+#	
+##################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+
+##################################################################
+# You can modify this portion
+	# Loop header
+	
+	iaddq -9,%rdx		# %rdx-10<=0?
+	jl pre_rest 		# if so,go to rest
+Loop:
+	mrmovq (%rdi), %r8	# read val from src... bubble
+	mrmovq 8(%rdi), %r9	# read val from src... bubble
+	mrmovq 16(%rdi), %r10	# read val from src... bubble
+	mrmovq 24(%rdi), %r11	# read val from src... bubble
+	mrmovq 32(%rdi), %r12	# read val from src... bubble
+	mrmovq 40(%rdi), %r13	# read val from src... bubble
+	mrmovq 48(%rdi), %r14	# read val from src... bubble
+	mrmovq 56(%rdi), %rcx	# read val from src... bubble
+	mrmovq 64(%rdi), %rbp	# read val from src... bubble
+	rmmovq %r8, (%rsi)		# ...and store it to dst
+	rmmovq %r9,  8(%rsi)	# ...and store it to dst
+	rmmovq %r10, 16(%rsi)	# ...and store it to dst
+	rmmovq %r11,  24(%rsi)	# ...and store it to dst
+	rmmovq %r12, 32(%rsi)	# ...and store it to dst
+	rmmovq %r13,  40(%rsi)	# ...and store it to dst
+	rmmovq %r14,  48(%rsi)	# ...and store it to dst
+	rmmovq %rcx,  56(%rsi)	# ...and store it to dst
+	rmmovq %rbp,  64(%rsi)	# ...and store it to dst
+
+Npos0:
+	andq %r8, %r8		# val1 <= 0?
+	jle Npos1		# if so, goto Npos:
+	iaddq 1, %rax		# else count++
+Npos1:	
+	andq %r9, %r9		# val2 <= 0?
+	jle Npos2			# if so, goto Npos:
+	iaddq 1, %rax		# else count++
+Npos2:	
+	andq %r10, %r10		# val3 <= 0?
+	jle Npos3			# if so, goto Npos:
+	iaddq 1, %rax		# else count++
+Npos3:	
+	andq %r11, %r11		# val4 <= 0?
+	jle Npos4			# if so, goto Npos:
+	iaddq 1, %rax		# else count++
+Npos4:	
+	andq %r12, %r12	# val5 <= 0?
+	jle Npos5		# if so, goto Npos:
+	iaddq 1, %rax		# else count++
+Npos5:	
+	andq %r13, %r13	# val6 <= 0?
+	jle Npos6
+	iaddq 1, %rax		# else count++
+Npos6:	
+	andq %rcx, %rcx	# val6 <= 0?
+	jle Npos7
+	iaddq 1, %rax		# else count++
+Npos7:	
+	andq %rbp, %rbp	# val6 <= 0?
+	jle Npos8
+	iaddq 1, %rax		# else count++
+Npos8:
+	andq %r14, %r14	# val6 <= 0?
+	jle loop_end
+	iaddq 1, %rax		# else count++
+loop_end:
+	iaddq 72, %rdi		# src+=9
+	iaddq 72, %rsi		# dst+=9
+	iaddq -9,%rdx		# %rdx-9>0?
+	jge Loop 		# if so,go to loop
+
+pre_rest:
+	mrmovq (%rdi), %r8
+	iaddq	$6,%rdx		# len <3
+	jge	right_3	# len >=3 
+
+rest_02:  #<3
+	iaddq	$2,%rdx	# len == 0
+	jl Done
+	rmmovq %r8,(%rsi)
+	je remain1
+	andq %r8, %r8
+	mrmovq 8(%rdi), %r8
+	jle N0
+	rmmovq %r8, 8(%rsi)
+	andq %r8,%r8
+	jle N01
+	iaddq 2, %rax
+	ret
+	N01:
+	iaddq 1, %rax
+	ret
+	N0:
+	rmmovq %r8, 8(%rsi)
+	andq %r8,%r8
+	jle Done
+	iaddq 1, %rax
+	ret
+
+rest_45:
+	iaddq $2, %rdx
+	je remain4
+	jmp remain5	
+
+right_3:
+	rmmovq %r8,(%rsi)
+	je remain3
+	iaddq	$-3,%rdx	# len == 6 
+	jl	rest_45	   #<6
+	je remain6
+	
+rest_78:
+	iaddq $-1, %rdx
+	je remain7
+
+remain8:
+	andq %r8, %r8
+	mrmovq 56(%rdi), %r8
+	jle N8
+	iaddq $1, %rax
+	N8:
+	rmmovq %r8, 56(%rsi)
+remain7:
+	andq %r8, %r8
+	mrmovq 48(%rdi), %r8
+	jle N7
+	iaddq $1, %rax
+	N7:
+	rmmovq %r8, 48(%rsi)
+remain6:
+	andq %r8, %r8
+	mrmovq 40(%rdi), %r8
+	jle N6
+	iaddq $1, %rax
+	N6:
+	rmmovq %r8, 40(%rsi)
+remain5:
+	andq %r8, %r8
+	mrmovq 32(%rdi), %r8
+	jle N5
+	iaddq $1, %rax
+	N5:
+	rmmovq %r8, 32(%rsi)
+remain4:
+	andq %r8, %r8
+	mrmovq 24(%rdi), %r8
+	jle N4
+	iaddq $1, %rax
+	N4:
+	rmmovq %r8, 24(%rsi)
+remain3:
+	andq %r8, %r8
+	mrmovq 16(%rdi), %r8
+	jle N3
+	iaddq $1, %rax
+	N3:
+	rmmovq %r8, 16(%rsi)
+remain2:
+	andq %r8, %r8
+	mrmovq 8(%rdi), %r8
+	jle N2
+	iaddq $1, %rax
+	N2:
+	rmmovq %r8, 8(%rsi)
+remain1:
+	andq %r8,%r8
+	jle Done
+	iaddq 1, %rax
+
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	ret
+##################################################################
+# Keep the following label at the end of your function
+End:
+#/* $end ncopy-ys */
